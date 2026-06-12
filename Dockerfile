@@ -1,19 +1,12 @@
-FROM python:3.11-slim
+FROM continuumio/miniconda3:23.10.0-1
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    libgl1 \
-    libglib2.0-0 \
-    libgomp1 \
-    && rm -rf /var/lib/apt/lists/*
+RUN conda install -c conda-forge pythonocc-core=7.7.2 python=3.11 -y --quiet \
+    && conda clean -afy
 
-RUN pip install --no-cache-dir \
-    flask \
-    flask-cors \
-    gunicorn \
-    "https://github.com/tpaviot/pythonocc-core/releases/download/7.7.2/pythonocc_core-7.7.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
+RUN pip install --no-cache-dir flask flask-cors gunicorn
 
 COPY main.py .
 
-CMD gunicorn main:app --bind 0.0.0.0:${PORT:-8080} --workers 1 --timeout 120
+CMD gunicorn main:app --bind 0.0.0.0:${PORT:-8080} --workers 1 --timeout 180
