@@ -2,8 +2,8 @@ FROM cadquery/cadquery:latest
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir flask flask-cors
+RUN /opt/conda/envs/cq/bin/pip install flask flask-cors
 
 COPY main.py .
 
-CMD ["python", "main.py"]
+CMD ["/opt/conda/envs/cq/bin/python", "main.py"]
