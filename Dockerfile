@@ -2,14 +2,12 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system deps needed for pythonocc build
 RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python packages - use conda-forge wheel via pip
 RUN pip install --no-cache-dir \
     flask \
     flask-cors \
