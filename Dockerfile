@@ -1,4 +1,4 @@
-FROM cadquery/cadquery:latest
+FROM cadquery/cadquery:2.1
 
 WORKDIR /app
 
