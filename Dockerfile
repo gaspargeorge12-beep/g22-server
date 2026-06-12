@@ -9,4 +9,6 @@ RUN pip install --no-cache-dir flask flask-cors gunicorn
 
 COPY main.py .
 
-CMD ["sh", "-c", "gunicorn main:app --bind 0.0.0.0:${PORT:-8080} --workers 1 --timeout 180"]
+EXPOSE 8080
+
+CMD ["gunicorn", "main:app", "--bind", "0.0.0.0:8080", "--workers", "1", "--timeout", "180"]
