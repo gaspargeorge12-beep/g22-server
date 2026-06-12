@@ -10,11 +10,16 @@ def health():
     occ_ok = False
     ver = None
     try:
-        import ifcopenshell
+        import cadquery as cq
         occ_ok = True
-        ver = ifcopenshell.version
+        ver = cq.__version__
     except Exception:
-        pass
+        try:
+            import ifcopenshell
+            occ_ok = True
+            ver = 'ifcopenshell-' + ifcopenshell.version
+        except Exception:
+            pass
     return jsonify({'status': 'ok', 'occ': occ_ok, 'version': ver or '1.0'})
 
 @app.route('/process', methods=['POST'])
@@ -31,7 +36,7 @@ def process():
             tmp.write(data)
             tmp_path = tmp.name
         try:
-            return jsonify(parse_step_ifc(tmp_path))
+            return jsonify(parse_step_cadquery(tmp_path))
         except Exception as e:
             return jsonify({'error': str(e)}), 500
         finally:
@@ -41,37 +46,83 @@ def process():
                 pass
     return jsonify({'error': 'Format nesuportat'}), 501
 
-def parse_step_ifc(filepath):
-    import ifcopenshell
-    import ifcopenshell.geom
-    ifc = ifcopenshell.open(filepath)
-    settings = ifcopenshell.geom.settings()
-    settings.set(settings.USE_WORLD_COORDS, True)
+def parse_step_cadquery(filepath):
+    import cadquery as cq
+    from OCC.Core.BRepMesh import BRepMesh_IncrementalMesh
+    from OCC.Core.BRep import BRep_Tool
+    from OCC.Core.TopExp import TopExp_Explorer
+    from OCC.Core.TopAbs import TopAbs_FACE, TopAbs_REVERSED
+    from OCC.Core.TopoDS import topods
+
+    # Load STEP via cadquery
+    result = cq.importers.importStep(filepath)
+    shape = result.val().wrapped
+
+    # Mesh it
+    BRepMesh_IncrementalMesh(shape, 0.05, False, 0.3).Perform()
+
     faces_data = []
-    for product in ifc.by_type('IfcProduct'):
-        try:
-            shape = ifcopenshell.geom.create_shape(settings, product)
-            verts = list(shape.geometry.verts)
-            faces = list(shape.geometry.faces)
-            if not verts or not faces:
-                continue
-            tri_verts = []
-            for i in range(0, len(faces), 3):
-                for j in range(3):
-                    idx = faces[i + j] * 3
-                    tri_verts.extend(verts[idx:idx + 3])
-            faces_data.append({
-                'faceIdx': len(faces_data),
-                'vertices': tri_verts,
-                'normals': tri_verts,
-                'area': 0,
-                'nTriangles': len(faces) // 3
-            })
-        except Exception:
+    exp = TopExp_Explorer(shape, TopAbs_FACE)
+    face_idx = 0
+
+    while exp.More():
+        face = topods.Face(exp.Current())
+        tri = BRep_Tool.Triangulation_s(face, face.Location())
+
+        if tri is None or tri.NbNodes() == 0 or tri.NbTriangles() == 0:
+            exp.Next()
             continue
+
+        is_rev = face.Orientation() == TopAbs_REVERSED
+        n_tris = tri.NbTriangles()
+        vertices = []
+        normals = []
+        area = 0.0
+
+        for i in range(1, n_tris + 1):
+            n1, n2, n3 = tri.Triangle(i).Get()
+            if is_rev:
+                n2, n3 = n3, n2
+            pts = [
+                (tri.Node(n1).X(), tri.Node(n1).Y(), tri.Node(n1).Z()),
+                (tri.Node(n2).X(), tri.Node(n2).Y(), tri.Node(n2).Z()),
+                (tri.Node(n3).X(), tri.Node(n3).Y(), tri.Node(n3).Z()),
+            ]
+            for pt in pts:
+                vertices.extend(pt)
+
+            ax, ay, az = pts[0]
+            bx, by, bz = pts[1]
+            cx, cy, cz = pts[2]
+            ux, uy, uz = bx - ax, by - ay, bz - az
+            vx, vy, vz = cx - ax, cy - ay, cz - az
+            nx_ = uy * vz - uz * vy
+            ny_ = uz * vx - ux * vz
+            nz_ = ux * vy - uy * vx
+            ln = math.sqrt(nx_*nx_ + ny_*ny_ + nz_*nz_) or 1
+            nx_, ny_, nz_ = nx_/ln, ny_/ln, nz_/ln
+            for _ in range(3):
+                normals.extend([nx_, ny_, nz_])
+            area += math.sqrt((uy*vz-uz*vy)**2 + (uz*vx-ux*vz)**2 + (ux*vy-uy*vx)**2) / 2
+
+        faces_data.append({
+            'faceIdx': face_idx,
+            'vertices': vertices,
+            'normals': normals,
+            'area': area,
+            'nTriangles': n_tris
+        })
+        face_idx += 1
+        exp.Next()
+
     if not faces_data:
-        raise ValueError('Nicio geometrie gasita in fisierul STEP')
-    return {'faces': faces_data, 'source': 'ifcopenshell', 'faceCount': len(faces_data)}
+        raise ValueError('Nicio fata gasita in fisierul STEP')
+
+    return {
+        'faces': faces_data,
+        'source': 'cadquery',
+        'faceCount': len(faces_data)
+    }
 
 def parse_stl(data):
     if len(data) < 84:
