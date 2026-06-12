@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir flask flask-cors ifcopenshell
+RUN pip install --no-cache-dir flask flask-cors cadquery
 
 COPY main.py .
 
