@@ -1,8 +1,8 @@
-FROM python:3.11-slim
+FROM cadquery/cadquery:latest
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir flask flask-cors cadquery
+RUN pip install --no-cache-dir flask flask-cors
 
 COPY main.py .
 
