@@ -7,7 +7,15 @@ CORS(app, origins="*")
 
 @app.route('/health')
 def health():
-    return jsonify({'status': 'ok', 'occ': False, 'version': '1.0'})
+    occ_ok = False
+    ver = None
+    try:
+        import ifcopenshell
+        occ_ok = True
+        ver = ifcopenshell.version
+    except:
+        pass
+    return jsonify({'status': 'ok', 'occ': occ_ok, 'version': ver or '1.0'})
 
 @app.route('/process', methods=['POST'])
 def process():
