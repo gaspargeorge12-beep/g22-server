@@ -11,15 +11,11 @@ def health():
     ver = None
     try:
         import cadquery as cq
+        from OCP.BRep import BRep_Tool
         occ_ok = True
         ver = cq.__version__
     except Exception:
-        try:
-            import ifcopenshell
-            occ_ok = True
-            ver = 'ifcopenshell-' + ifcopenshell.version
-        except Exception:
-            pass
+        pass
     return jsonify({'status': 'ok', 'occ': occ_ok, 'version': ver or '1.0'})
 
 @app.route('/process', methods=['POST'])
@@ -36,7 +32,7 @@ def process():
             tmp.write(data)
             tmp_path = tmp.name
         try:
-            return jsonify(parse_step_cadquery(tmp_path))
+            return jsonify(parse_step(tmp_path))
         except Exception as e:
             return jsonify({'error': str(e)}), 500
         finally:
@@ -46,19 +42,17 @@ def process():
                 pass
     return jsonify({'error': 'Format nesuportat'}), 501
 
-def parse_step_cadquery(filepath):
+def parse_step(filepath):
     import cadquery as cq
-    from OCC.Core.BRepMesh import BRepMesh_IncrementalMesh
-    from OCC.Core.BRep import BRep_Tool
-    from OCC.Core.TopExp import TopExp_Explorer
-    from OCC.Core.TopAbs import TopAbs_FACE, TopAbs_REVERSED
-    from OCC.Core.TopoDS import topods
+    from OCP.BRepMesh import BRepMesh_IncrementalMesh
+    from OCP.BRep import BRep_Tool
+    from OCP.TopExp import TopExp_Explorer
+    from OCP.TopAbs import TopAbs_FACE, TopAbs_REVERSED
+    from OCP.TopoDS import topods
 
-    # Load STEP via cadquery
     result = cq.importers.importStep(filepath)
     shape = result.val().wrapped
 
-    # Mesh it
     BRepMesh_IncrementalMesh(shape, 0.05, False, 0.3).Perform()
 
     faces_data = []
@@ -94,11 +88,11 @@ def parse_step_cadquery(filepath):
             ax, ay, az = pts[0]
             bx, by, bz = pts[1]
             cx, cy, cz = pts[2]
-            ux, uy, uz = bx - ax, by - ay, bz - az
-            vx, vy, vz = cx - ax, cy - ay, cz - az
-            nx_ = uy * vz - uz * vy
-            ny_ = uz * vx - ux * vz
-            nz_ = ux * vy - uy * vx
+            ux, uy, uz = bx-ax, by-ay, bz-az
+            vx, vy, vz = cx-ax, cy-ay, cz-az
+            nx_ = uy*vz - uz*vy
+            ny_ = uz*vx - ux*vz
+            nz_ = ux*vy - uy*vx
             ln = math.sqrt(nx_*nx_ + ny_*ny_ + nz_*nz_) or 1
             nx_, ny_, nz_ = nx_/ln, ny_/ln, nz_/ln
             for _ in range(3):
@@ -118,11 +112,7 @@ def parse_step_cadquery(filepath):
     if not faces_data:
         raise ValueError('Nicio fata gasita in fisierul STEP')
 
-    return {
-        'faces': faces_data,
-        'source': 'cadquery',
-        'faceCount': len(faces_data)
-    }
+    return {'faces': faces_data, 'source': 'cadquery+OCP', 'faceCount': len(faces_data)}
 
 def parse_stl(data):
     if len(data) < 84:
