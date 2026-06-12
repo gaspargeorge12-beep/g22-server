@@ -1,4 +1,4 @@
-import os, math, struct, tempfile
+import os, struct, math
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
@@ -16,9 +16,8 @@ def process():
     f = request.files['file']
     ext = f.filename.rsplit('.', 1)[-1].lower()
     if ext == 'stl':
-        data = f.read()
-        return jsonify(parse_stl(data))
-    return jsonify({'error': 'STEP necesită pythonocc — instalează local'}), 501
+        return jsonify(parse_stl(f.read()))
+    return jsonify({'error': 'STEP suport în curând'}), 501
 
 def parse_stl(data):
     n = struct.unpack_from('<I', data, 80)[0]
@@ -33,4 +32,5 @@ def parse_stl(data):
     return {'faces':[{'faceIdx':0,'vertices':verts,'normals':norms,'area':0,'nTriangles':n}],'source':'stl'}
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port)
