@@ -48,7 +48,7 @@ def parse_step(filepath):
     from OCP.BRep import BRep_Tool
     from OCP.TopExp import TopExp_Explorer
     from OCP.TopAbs import TopAbs_FACE, TopAbs_REVERSED
-    from OCP.TopoDS import topods
+    from OCP.TopoDS import TopoDS_Face
 
     result = cq.importers.importStep(filepath)
     shape = result.val().wrapped
@@ -60,7 +60,8 @@ def parse_step(filepath):
     face_idx = 0
 
     while exp.More():
-        face = topods.Face(exp.Current())
+        face = TopoDS_Face()
+        face.__init__(exp.Current())
         tri = BRep_Tool.Triangulation_s(face, face.Location())
 
         if tri is None or tri.NbNodes() == 0 or tri.NbTriangles() == 0:
