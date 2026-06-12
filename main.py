@@ -33,4 +33,4 @@ def parse_stl(data):
     return {'faces':[{'faceIdx':0,'vertices':verts,'normals':norms,'area':0,'nTriangles':n}],'source':'stl'}
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
