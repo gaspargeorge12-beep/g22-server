@@ -63,7 +63,8 @@ def parse_step(filepath):
     from OCP.BRep import BRep_Tool
     from OCP.TopExp import TopExp_Explorer
     from OCP.TopAbs import TopAbs_FACE, TopAbs_REVERSED
-    from OCP.TopoDS import topods
+    from OCP.TopoDS import TopoDS_Face
+    from OCP.BRep import BRep_Builder
 
     result = cq.importers.importStep(filepath)
     shape = result.val().wrapped
@@ -75,8 +76,13 @@ def parse_step(filepath):
     face_idx = 0
 
     while exp.More():
-        # FIX OCP: folosim topods.Face() in loc de TopoDS_Face().__init__()
-        face = topods.Face(exp.Current())
+        # FIX OCP SIGSEGV: downcast corect pentru CadQuery 2.1
+        raw = exp.Current()
+        face = TopoDS_Face()
+        face.TShape(raw.TShape())
+        face.Location(raw.Location())
+        face.Orientation(raw.Orientation())
+
         tri = BRep_Tool.Triangulation_s(face, face.Location())
 
         if tri is None or tri.NbNodes() == 0 or tri.NbTriangles() == 0:
@@ -153,3 +159,4 @@ def parse_stl(data):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
+    
