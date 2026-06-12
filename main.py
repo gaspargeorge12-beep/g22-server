@@ -3,7 +3,18 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app, origins="*")
+CORS(app, resources={r"/*": {
+    "origins": "*",
+    "methods": ["GET", "POST", "OPTIONS"],
+    "allow_headers": ["Content-Type", "Authorization"]
+}})
+
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    return response
 
 @app.route('/health')
 def health():
@@ -18,8 +29,10 @@ def health():
         pass
     return jsonify({'status': 'ok', 'occ': occ_ok, 'version': ver or '1.0'})
 
-@app.route('/process', methods=['POST'])
+@app.route('/process', methods=['POST', 'OPTIONS'])
 def process():
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
     if 'file' not in request.files:
         return jsonify({'error': 'No file'}), 400
     f = request.files['file']
